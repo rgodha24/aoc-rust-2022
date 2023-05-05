@@ -9,9 +9,9 @@ pub fn part_one(input: &str) -> Option<u32> {
 
 pub fn part_two(input: &str) -> Option<u32> {
     let cals = input
-    .split("\n\n")
-    .map(|group| group.split("\n").map(|f| str::parse::<u32>(f).unwrap()))
-    .map(|group| group.sum());
+        .split("\n\n")
+        .map(|group| group.split("\n").map(|f| str::parse::<u32>(f).unwrap()))
+        .map(|group| group.sum());
 
     let mut test: Vec<u32> = cals.collect();
 
