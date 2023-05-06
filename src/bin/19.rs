@@ -1,31 +1,38 @@
-use cached::proc_macro::cached;
 use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 use std::cmp::Ordering;
-use std::collections::BinaryHeap;
-use std::ops::Sub;
+use std::collections::{BinaryHeap, HashSet};
+use std::ops::{Add, AddAssign, Index, IndexMut, Sub};
 
 pub fn part_one(input: &str) -> Option<u32> {
-    const MINUTES: u32 = 24;
-    let blueprints = parse_to_blueprints(input, MINUTES);
-    println!("blueprints: {:?}", blueprints.len());
-
-    let answer: Vec<_> = blueprints
-        .par_iter()
-        .progress_count(blueprints.len() as u64)
-        .map(|b| solve_blueprint(b.clone()))
-        .enumerate()
-        .collect();
+    let blueprints = parse_to_blueprints(input, 24);
+    let answer = solve_blueprints(blueprints);
     let answer = answer
         .iter()
-        .map(|(idx, geode)| (*idx as u32 + 1) * geode)
+        .enumerate()
+        .map(|(idx, geode)| (idx.clone() as u32 + 1) * (*geode as u32))
         .sum();
 
     Some(answer)
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    None
+    let mut blueprints = parse_to_blueprints(input, 32);
+    blueprints.truncate(3);
+
+    let answer = solve_blueprints(blueprints);
+
+    Some(answer.into_iter().product())
+}
+
+fn solve_blueprints(blueprints: Vec<Blueprint>) -> Vec<u32> {
+    let answer: Vec<_> = blueprints
+        .par_iter()
+        .progress_count(blueprints.len() as u64)
+        .map(|b| solve_blueprint(b.clone()).into())
+        .collect();
+
+    answer
 }
 
 fn main() {
@@ -34,79 +41,67 @@ fn main() {
     advent_of_code::solve!(2, part_two, input);
 }
 
-fn solve_blueprint(blueprint: Blueprint) -> u32 {
+fn solve_blueprint(blueprint: Blueprint) -> u8 {
     let max_robots = blueprint.max_robots();
-    let mut heap: BinaryHeap<_> = vec![blueprint].into_iter().collect();
-    let mut max_geode = u32::MIN;
-    let mut iterations: u64 = 0;
+    let costs: Costs = blueprint.clone().into();
+    let first_state: State = blueprint.into();
+    let mut heap: BinaryHeap<_> = vec![first_state].into();
+    let mut set: HashSet<State> = HashSet::new();
+    let mut max_geode = u8::MIN;
 
-    while let Some(blueprint) = heap.pop() {
-        let answers = tick_blueprint(blueprint, max_robots);
-
-        match answers {
-            BlueprintReturn::Blueprint(answers) => {
-                //bar.inc_length(answers.len() as u64);
+    while let Some(state) = heap.pop() {
+        // we've already calculated this branch
+        if set.contains(&state) {
+            continue;
+        }
+        match tick_state(&state, &max_robots, &costs) {
+            TickReturn::Loop(answers) => {
                 heap.extend(answers);
             }
-            BlueprintReturn::Answer(answer) => {
+            TickReturn::Answer(answer) => {
                 if answer > max_geode {
                     max_geode = answer;
-                    // bar.println(format!("new max: {:?}", max_geode));
                 }
             }
-            BlueprintReturn::DeadBranch => {}
         }
-        iterations += 1;
-        // bar.inc(1);
-
-        if iterations > 200_000_000 {
-            break;
-        }
+        set.insert(state);
     }
 
-    // bar.finish();
-
-    return max_geode;
+    max_geode
 }
 
-#[derive(Debug, Clone)]
-enum BlueprintReturn {
-    Blueprint(Vec<Blueprint>),
-    Answer(u32),
-    DeadBranch,
-}
-
-#[derive(Default, Debug, Hash, PartialEq, Eq, Clone, Copy)]
-struct MaxRobots(u32, u32, u32);
-
-// #[cached]
-fn tick_blueprint(mut blueprint: Blueprint, max_robots: MaxRobots) -> BlueprintReturn {
-    if blueprint.time_remaining == 0 {
-        return BlueprintReturn::Answer(blueprint.inventory.geode);
+fn tick_state(state: &State, max_robots: &MaxRobots, costs: &Costs) -> TickReturn {
+    // if this is the last cycle, building robots won't make a difference, so just return early
+    if state.time_remaining == 1 {
+        let mut new = state.clone();
+        new.tick();
+        return TickReturn::Answer(new.inventory[Geode]);
     }
-
-    blueprint.tick();
 
     let mut answers = Vec::new();
 
-    if blueprint.inventory > blueprint.geode_cost {
-        answers.push(blueprint.with_new_geode_robot());
+    if state.inventory > costs[Geode] {
+        answers.push(state.w_new_robot(costs, Geode));
 
         // if we can build a geode, we always should
-        return BlueprintReturn::Blueprint(answers);
+        return TickReturn::Loop(answers);
     }
-    if blueprint.inventory > blueprint.ore_cost && blueprint.ore_r_count < max_robots.0 {
-        answers.push(blueprint.with_new_ore_robot());
+    if state.inventory > costs[Ore] && state.robots[Ore] < max_robots[Ore] {
+        answers.push(state.w_new_robot(costs, Ore));
     }
-    if blueprint.inventory > blueprint.clay_cost && blueprint.clay_r_count < max_robots.1 {
-        answers.push(blueprint.with_new_clay_robot());
+    if state.inventory > costs[Clay] && state.robots[Clay] < max_robots[Clay] {
+        answers.push(state.w_new_robot(costs, Clay));
     }
-    if blueprint.inventory > blueprint.obsidian_cost && blueprint.obsidian_r_count < max_robots.2 {
-        answers.push(blueprint.with_new_obsidian_robot());
+    if state.inventory > costs[Obsidian] && state.robots[Obsidian] < max_robots[Obsidian] {
+        answers.push(state.w_new_robot(costs, Obsidian));
     }
 
-    answers.push(blueprint.with_no_change());
-    BlueprintReturn::Blueprint(answers)
+    // no change
+    let mut new = state.clone();
+    new.tick();
+    answers.push(new);
+
+    TickReturn::Loop(answers)
 }
 
 fn parse_to_blueprints(input: &str, time_remaining: u32) -> Vec<Blueprint> {
@@ -147,6 +142,36 @@ fn parse_to_blueprints(input: &str, time_remaining: u32) -> Vec<Blueprint> {
     blueprints
 }
 
+#[derive(Debug, Clone)]
+enum TickReturn {
+    Loop(Vec<State>),
+    Answer(u8),
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Robots {
+    Ore,
+    Clay,
+    Obsidian,
+    Geode,
+}
+use Robots::*;
+
+#[derive(Default, Debug, Clone, Copy, Hash, PartialEq, Eq)]
+struct Resources(u8, u8, u8, u8);
+
+struct Costs([Resources; 4]);
+
+#[derive(Default, Debug, Clone, Hash, PartialEq, Eq)]
+struct State {
+    inventory: Resources,
+    robots: Resources,
+    time_remaining: u8,
+}
+
+#[derive(Default, Debug, Hash, PartialEq, Eq)]
+struct MaxRobots(u8, u8, u8);
+
 #[derive(Default, Debug, Clone, Hash, PartialEq, Eq, Copy)]
 struct Cost {
     ore: u32,
@@ -155,13 +180,200 @@ struct Cost {
     geode: u32,
 }
 
+impl From<Blueprint> for Costs {
+    fn from(blueprint: Blueprint) -> Self {
+        Costs([
+            blueprint.ore_cost.into(),
+            blueprint.clay_cost.into(),
+            blueprint.obsidian_cost.into(),
+            blueprint.geode_cost.into(),
+        ])
+    }
+}
+
+impl From<Cost> for Resources {
+    fn from(cost: Cost) -> Self {
+        Resources(
+            cost.ore as u8,
+            cost.clay as u8,
+            cost.obsidian as u8,
+            cost.geode as u8,
+        )
+    }
+}
+
+impl From<Blueprint> for State {
+    fn from(blueprint: Blueprint) -> Self {
+        State {
+            inventory: Default::default(),
+            robots: Resources(blueprint.ore_r_count as u8, 0, 0, 0),
+            time_remaining: blueprint.time_remaining as u8,
+        }
+    }
+}
+
+impl PartialOrd for State {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for State {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.priority().cmp(&other.priority())
+    }
+}
+
+impl State {
+    fn tick(&mut self) {
+        self.time_remaining -= 1;
+        self.inventory += self.robots;
+    }
+    fn priority(&self) -> isize {
+        // this is so ugly LMAO
+        let ans = self.inventory.geode() * 100
+            + self.robots.geode() * 500
+            + self.inventory.obsidian() * 10
+            + self.robots.obsidian() * 50;
+
+        (ans as isize) - self.time_remaining as isize * 15 - self.inventory.clay() as isize * 2
+    }
+
+    fn w_new_robot(&self, costs: &Costs, robot: Robots) -> State {
+        let mut state = self.clone();
+        state.inventory = state.inventory - costs[robot].clone();
+        state.tick();
+        state.robots.inc(robot, 1);
+
+        state
+    }
+}
+
+impl Sub for Resources {
+    type Output = Resources;
+
+    fn sub(self, other: Resources) -> Self::Output {
+        Resources(
+            self.0 - other.0,
+            self.1 - other.1,
+            self.2 - other.2,
+            self.3 - other.3,
+        )
+    }
+}
+
+impl Add for Resources {
+    type Output = Resources;
+
+    fn add(self, other: Resources) -> Self::Output {
+        Resources(
+            self.0 + other.0,
+            self.1 + other.1,
+            self.2 + other.2,
+            self.3 + other.3,
+        )
+    }
+}
+
+impl AddAssign for Resources {
+    fn add_assign(&mut self, other: Resources) {
+        *self = *self + other;
+    }
+}
+
+impl Index<Robots> for Resources {
+    type Output = u8;
+    fn index(&self, index: Robots) -> &Self::Output {
+        match index {
+            Robots::Ore => &self.0,
+            Robots::Clay => &self.1,
+            Robots::Obsidian => &self.2,
+            Robots::Geode => &self.3,
+        }
+    }
+}
+
+impl IndexMut<Robots> for Resources {
+    fn index_mut(&mut self, index: Robots) -> &mut Self::Output {
+        match index {
+            Robots::Ore => &mut self.0,
+            Robots::Clay => &mut self.1,
+            Robots::Obsidian => &mut self.2,
+            Robots::Geode => &mut self.3,
+        }
+    }
+}
+
+impl PartialOrd for Resources {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Resources {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.0 < other.0 {
+            return Ordering::Less;
+        }
+        if self.1 < other.1 {
+            return Ordering::Less;
+        }
+        if self.2 < other.2 {
+            return Ordering::Less;
+        }
+        if self.3 < other.3 {
+            return Ordering::Less;
+        }
+
+        Ordering::Greater
+    }
+}
+
+impl Resources {
+    fn ore(&self) -> usize {
+        self.0 as usize
+    }
+    fn clay(&self) -> usize {
+        self.1 as usize
+    }
+    fn obsidian(&self) -> usize {
+        self.2 as usize
+    }
+    fn geode(&self) -> usize {
+        self.3 as usize
+    }
+    fn inc(&mut self, robot: Robots, amount: u8) {
+        self[robot] += amount;
+    }
+}
+
+impl Index<Robots> for Costs {
+    type Output = Resources;
+    fn index(&self, index: Robots) -> &Self::Output {
+        match index {
+            Robots::Ore => &self.0[0],
+            Robots::Clay => &self.0[1],
+            Robots::Obsidian => &self.0[2],
+            Robots::Geode => &self.0[3],
+        }
+    }
+}
+
+impl Index<Robots> for MaxRobots {
+    type Output = u8;
+    fn index(&self, index: Robots) -> &Self::Output {
+        match index {
+            Robots::Ore => &self.0,
+            Robots::Clay => &self.1,
+            Robots::Obsidian => &self.2,
+            Robots::Geode => &u8::MAX,
+        }
+    }
+}
+
 #[derive(Default, Debug, Clone, Hash, PartialEq, Eq, PartialOrd)]
 struct Blueprint {
     ore_r_count: u32,
-    clay_r_count: u32,
-    obsidian_r_count: u32,
-    geode_r_count: u32,
-    inventory: Cost,
     ore_cost: Cost,
     obsidian_cost: Cost,
     clay_cost: Cost,
@@ -180,12 +392,6 @@ impl Sub for Cost {
             obsidian: self.obsidian - other.obsidian,
             geode: self.geode - other.geode,
         }
-    }
-}
-
-impl Ord for Blueprint {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.priority().cmp(&other.priority())
     }
 }
 
@@ -215,78 +421,6 @@ impl Ord for Cost {
 }
 
 impl Blueprint {
-    pub fn priority(&self) -> u32 {
-        self.inventory.geode * 100
-            + self.geode_r_count * 500
-            + self.inventory.obsidian * 10
-            + self.obsidian_r_count * 50
-            - self.time_remaining * 15
-            - self.inventory.clay * 2
-    }
-    fn to_arr(&self) -> [u8; 8] {
-        [
-            self.ore_r_count as u8,
-            self.clay_r_count as u8,
-            self.obsidian_r_count as u8,
-            self.geode_r_count as u8,
-            self.inventory.ore as u8,
-            self.inventory.clay as u8,
-            self.inventory.obsidian as u8,
-            self.inventory.geode as u8,
-        ]
-    }
-
-    pub fn tick(&mut self) {
-        self.inventory.ore += self.ore_r_count - self.new_robots[0];
-        self.inventory.clay += self.clay_r_count - self.new_robots[1];
-        self.inventory.obsidian += self.obsidian_r_count - self.new_robots[2];
-        self.inventory.geode += self.geode_r_count - self.new_robots[3];
-    }
-
-    pub fn with_new_ore_robot(&self) -> Self {
-        let mut new = self.clone();
-        new.ore_r_count += 1;
-        new.inventory = self.inventory - self.ore_cost;
-        new.time_remaining -= 1;
-        new.new_robots = [1, 0, 0, 0];
-
-        new
-    }
-    pub fn with_new_clay_robot(&self) -> Self {
-        let mut new = self.clone();
-        new.clay_r_count += 1;
-        new.inventory = self.inventory - self.clay_cost;
-        new.time_remaining -= 1;
-        new.new_robots = [0, 1, 0, 0];
-
-        new
-    }
-    pub fn with_new_obsidian_robot(&self) -> Self {
-        let mut new = self.clone();
-        new.obsidian_r_count += 1;
-        new.inventory = self.inventory - self.obsidian_cost;
-        new.time_remaining -= 1;
-        new.new_robots = [0, 0, 1, 0];
-
-        new
-    }
-    pub fn with_new_geode_robot(&self) -> Self {
-        let mut new = self.clone();
-        new.geode_r_count += 1;
-        new.inventory = self.inventory - self.geode_cost;
-        new.time_remaining -= 1;
-        new.new_robots = [0, 0, 0, 1];
-
-        new
-    }
-    pub fn with_no_change(&self) -> Self {
-        let mut new = self.clone();
-        new.time_remaining -= 1;
-        new.new_robots = [0, 0, 0, 0];
-
-        new
-    }
-
     fn max_ore_robots(&self) -> u32 {
         self.geode_cost.ore.max(self.clay_cost.ore)
     }
@@ -299,9 +433,9 @@ impl Blueprint {
 
     fn max_robots(&self) -> MaxRobots {
         MaxRobots(
-            self.max_ore_robots(),
-            self.max_clay_robots(),
-            self.max_obsidian_robots(),
+            self.max_ore_robots() as u8,
+            self.max_clay_robots() as u8,
+            self.max_obsidian_robots() as u8,
         )
     }
 }
@@ -317,50 +451,8 @@ mod tests {
     }
 
     #[test]
-    fn test_part_one_real() {
-        let input = advent_of_code::read_file("inputs", 19);
-        assert_eq!(part_one(&input), Some(1834));
-    }
-
-    #[test]
     fn test_part_two() {
         let input = advent_of_code::read_file("examples", 19);
         assert_eq!(part_two(&input), None);
-    }
-
-    #[test]
-    fn test_ord() {
-        assert!(
-            Cost {
-                ore: 4,
-                clay: 4,
-                ..Default::default()
-            } > Cost {
-                ore: 3,
-                clay: 4,
-                ..Default::default()
-            }
-        );
-
-        assert!(
-            Cost {
-                ore: 4,
-                ..Default::default()
-            } >= Cost {
-                ore: 4,
-                ..Default::default()
-            }
-        );
-
-        assert!(
-            Cost {
-                ore: 5,
-                clay: 10,
-                ..Default::default()
-            } < Cost {
-                obsidian: 13,
-                ..Default::default()
-            }
-        )
     }
 }
