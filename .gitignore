@@ -19,4 +19,7 @@ target/
 /src/inputs
 !/src/inputs/.keep
 
+/src/puzzles
+!/src/puzzles/.keep
+
 **/.DS_Store
