@@ -6,6 +6,7 @@
 use std::env;
 use std::fs;
 
+pub mod bench;
 pub mod helpers;
 
 pub const ANSI_ITALIC: &str = "\x1b[3m";
@@ -14,12 +15,15 @@ pub const ANSI_RESET: &str = "\x1b[0m";
 
 #[macro_export]
 macro_rules! solve {
-    ($part:expr, $solver:ident, $input:expr) => {{
-        use advent_of_code::{ANSI_BOLD, ANSI_ITALIC, ANSI_RESET};
+    ($part:expr, $day:expr, $solver:ident, $input:expr) => {{
+        use advent_of_code::{bench::Benchmark, ANSI_BOLD, ANSI_ITALIC, ANSI_RESET};
         use std::fmt::Display;
-        use std::time::Instant;
+        use std::time::{Duration, Instant};
 
-        fn print_result<T: Display>(func: impl FnOnce(&str) -> Option<T>, input: &str) {
+        fn print_result<T: Display>(
+            func: impl FnOnce(&str) -> Option<T>,
+            input: &str,
+        ) -> Option<Duration> {
             let timer = Instant::now();
             let result = func(input);
             let elapsed = timer.elapsed();
@@ -29,15 +33,22 @@ macro_rules! solve {
                         "{} {}(elapsed: {:.2?}){}",
                         result, ANSI_ITALIC, elapsed, ANSI_RESET
                     );
+                    Some(elapsed)
                 }
                 None => {
-                    println!("not solved.")
+                    println!("not solved.");
+                    None
                 }
             }
         }
 
         println!("🎄 {}Part {}{} 🎄", ANSI_BOLD, $part, ANSI_RESET);
-        print_result($solver, $input);
+        let duration = print_result($solver, $input);
+        if let Some(duration) = duration {
+            let mut bench = Benchmark::from_file();
+            bench.add($day, $part, duration);
+            bench.write();
+        }
     }};
 }
 

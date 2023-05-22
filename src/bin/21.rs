@@ -33,7 +33,6 @@ pub fn part_two(input: &str) -> Option<i64> {
 }
 
 fn calc_humn(value: i64, name: &str, map: &HashMap<&str, Monkey>) -> i64 {
-    println!("monkey {name}, expecting value {value}");
     // if we have found humn, we return the value that we expect humn to be
     if name == "humn" {
         return value;
@@ -90,8 +89,8 @@ enum Operator {
 
 fn main() {
     let input = &advent_of_code::read_file("inputs", 21);
-    advent_of_code::solve!(1, part_one, input);
-    advent_of_code::solve!(2, part_two, input);
+    advent_of_code::solve!(1, 21, part_one, input);
+    advent_of_code::solve!(2, 21, part_two, input);
 }
 
 impl Monkey<'_> {

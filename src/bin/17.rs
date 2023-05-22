@@ -1,4 +1,4 @@
-use indicatif::{ProgressBar, ProgressIterator};
+
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
@@ -75,8 +75,8 @@ fn solve(input: &str, years: usize) -> isize {
 
 fn main() {
     let input = &advent_of_code::read_file("inputs", 17);
-    advent_of_code::solve!(1, part_one, input);
-    advent_of_code::solve!(2, part_two, input);
+    advent_of_code::solve!(1, 17, part_one, input);
+    advent_of_code::solve!(2, 17, part_two, input);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

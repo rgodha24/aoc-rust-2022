@@ -37,8 +37,8 @@ fn solve_blueprints(blueprints: Vec<Blueprint>) -> Vec<u32> {
 
 fn main() {
     let input = &advent_of_code::read_file("inputs", 19);
-    advent_of_code::solve!(1, part_one, input);
-    advent_of_code::solve!(2, part_two, input);
+    advent_of_code::solve!(1, 19, part_one, input);
+    advent_of_code::solve!(2, 19, part_two, input);
 }
 
 fn solve_blueprint(blueprint: Blueprint) -> u8 {
@@ -330,9 +330,6 @@ impl Ord for Resources {
 }
 
 impl Resources {
-    fn ore(&self) -> usize {
-        self.0 as usize
-    }
     fn clay(&self) -> usize {
         self.1 as usize
     }

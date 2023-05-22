@@ -24,8 +24,8 @@ pub fn part_two(input: &str) -> Option<usize> {
 
 fn main() {
     let input = &advent_of_code::read_file("inputs", 4);
-    advent_of_code::solve!(1, part_one, input);
-    advent_of_code::solve!(2, part_two, input);
+    advent_of_code::solve!(1, 4, part_one, input);
+    advent_of_code::solve!(2, 4, part_two, input);
 }
 
 fn parse(input: &str) -> Vec<(RangeInclusive<usize>, RangeInclusive<usize>)> {

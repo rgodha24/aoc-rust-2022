@@ -49,14 +49,14 @@ pub fn part_one(input: &str) -> Option<u32> {
     Some(max_pressure as u32)
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
+pub fn part_two(_input: &str) -> Option<u32> {
     None
 }
 
 fn main() {
     let input = &advent_of_code::read_file("inputs", 16);
-    advent_of_code::solve!(1, part_one, input);
-    advent_of_code::solve!(2, part_two, input);
+    advent_of_code::solve!(1, 16, part_one, input);
+    advent_of_code::solve!(2, 16, part_two, input);
 }
 
 fn parse(input: &str) -> (Vec<Valve>, Map) {

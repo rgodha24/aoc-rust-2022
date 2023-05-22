@@ -30,8 +30,8 @@ pub fn part_two(input: &str) -> Option<String> {
 
 fn main() {
     let input = &advent_of_code::read_file("inputs", 5);
-    advent_of_code::solve!(1, part_one, input);
-    advent_of_code::solve!(2, part_two, input);
+    advent_of_code::solve!(1, 5, part_one, input);
+    advent_of_code::solve!(2, 5, part_two, input);
 }
 
 type Stack = Vec<char>;

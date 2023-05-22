@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-const words: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const WORDS: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 pub fn part_one(input: &str) -> Option<u32> {
     let lines = input.lines();
@@ -21,7 +21,7 @@ pub fn part_one(input: &str) -> Option<u32> {
     // a-z 1-26, A-Z 27-52
     let mut sum = 0;
     for c in answer {
-        sum += words.find(c).unwrap() as u32 + 1;
+        sum += WORDS.find(c).unwrap() as u32 + 1;
     }
 
     Some(sum)
@@ -49,7 +49,7 @@ pub fn part_two(input: &str) -> Option<u32> {
     // a-z 1-26, A-Z 27-52
     let mut sum = 0;
     for c in answer {
-        sum += words.find(c).unwrap() as u32 + 1;
+        sum += WORDS.find(c).unwrap() as u32 + 1;
     }
 
     Some(sum)
@@ -57,8 +57,8 @@ pub fn part_two(input: &str) -> Option<u32> {
 
 fn main() {
     let input = &advent_of_code::read_file("inputs", 3);
-    advent_of_code::solve!(1, part_one, input);
-    advent_of_code::solve!(2, part_two, input);
+    advent_of_code::solve!(1, 3, part_one, input);
+    advent_of_code::solve!(2, 3, part_two, input);
 }
 
 #[cfg(test)]

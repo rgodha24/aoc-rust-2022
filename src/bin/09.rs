@@ -40,8 +40,8 @@ pub fn part_two(input: &str) -> Option<usize> {
 
 fn main() {
     let input = &advent_of_code::read_file("inputs", 9);
-    advent_of_code::solve!(1, part_one, input);
-    advent_of_code::solve!(2, part_two, input);
+    advent_of_code::solve!(1, 9, part_one, input);
+    advent_of_code::solve!(2, 9, part_two, input);
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
