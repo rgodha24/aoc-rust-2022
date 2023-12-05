@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, time::Duration};
+use std::{collections::BTreeMap, time::Duration};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Benchmark(HashMap<u8, Part>);
+pub struct Benchmark(BTreeMap<u8, Part>);
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, Default)]
 struct Part {
@@ -29,7 +29,7 @@ impl Benchmark {
     pub fn write(self) {
         let mut keys = self.0.keys().map(|k| *k).collect::<Vec<_>>();
         keys.sort();
-        let mut ordered_map = HashMap::new();
+        let mut ordered_map = BTreeMap::new();
         for key in keys {
             ordered_map.insert(key, self.0.get(&key).unwrap());
         }
